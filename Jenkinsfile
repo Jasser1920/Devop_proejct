@@ -1,44 +1,42 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'Maven'    // le nom exact que ton prof a configuré dans "Global Tool Configuration"
+    }
+
+    environment {
+        // On force le profil H2 uniquement sur Jenkins
+        SPRING_PROFILES_ACTIVE = 'prod'   // ou 'ci' si tu as nommé le fichier application-ci.properties
+    }
+
     stages {
-        stage('Récupération du code') {
+        stage('Checkout') {
             steps {
-                echo '=== Récupération du code depuis GitHub ==='
-                git url: 'https://github.com/Jasser1920/Devop_proejct.git', 
-                    branch: 'main'
+                git branch: 'main',  // ou 'main'
+                    url: 'https://github.com/Jasser1920/Devop_proejct.git',
+                    credentialsId: 'jenkins-github-pat'   // à créer si besoin
             }
         }
 
-        stage('Compilation') {
+        stage('Build & Test') {
             steps {
-                echo '=== Compilation du projet Maven ==='
-                sh 'mvn compile'
-            }
-        }
-
-        stage('Tests unitaires') {
-            steps {
-                echo '=== Exécution des tests unitaires ==='
-                sh 'mvn test'
-            }
-        }
-
-        stage('Packaging') {
-            steps {
-                echo '=== Création du JAR ==='
-                sh 'mvn package'
+                sh 'mvn clean verify'  
+                // ou si tu veux être encore plus safe :
+                // sh 'mvn clean verify -Dspring.profiles.active=prod'
             }
         }
     }
 
     post {
+        always {
+            echo "=== Fin du pipeline ==="
+        }
         success {
-            echo 'Pipeline terminé avec succès !'
-            archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true
+            echo "BRAVO ! Le build a réussi"
         }
         failure {
-            echo 'Échec du pipeline - corrigez les erreurs'
+            echo "Échec du build"
         }
     }
 }
