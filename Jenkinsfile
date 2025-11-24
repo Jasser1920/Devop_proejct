@@ -2,41 +2,54 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven'    // le nom exact que ton prof a configuré dans "Global Tool Configuration"
+        // Change ici avec le nom EXACT que tu vois dans 
+        // Manage Jenkins → Tools → Maven installations
+        // La plupart du temps c’est "Maven" ou "maven-3.9.6" ou "M3"
+        maven 'Maven'      // ← à vérifier/adapter si besoin
     }
 
     environment {
-        // On force le profil H2 uniquement sur Jenkins
-        SPRING_PROFILES_ACTIVE = 'prod'   // ou 'ci' si tu as nommé le fichier application-ci.properties
+        // Ce profil sera activé automatiquement sur Jenkins
+        SPRING_PROFILES_ACTIVE = 'prod'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main',  // ou 'main'
+                echo 'Récupération du code GitHub'
+                git branch: 'main',
                     url: 'https://github.com/Jasser1920/Devop_proejct.git',
-                    credentialsId: 'jenkins-github-pat'   // à créer si besoin
+                    credentialsId: 'jenkins-github-pat'
             }
         }
 
         stage('Build & Test') {
             steps {
-                sh 'mvn clean verify'  
-                // ou si tu veux être encore plus safe :
-                // sh 'mvn clean verify -Dspring.profiles.active=prod'
+                echo 'Lancement de Maven : compilation + tests'
+                // On ne skippe plus les tests : on veut que ça passe vraiment
+                sh 'mvn clean verify'
+            }
+        }
+
+        stage('Packaging') {
+            steps {
+                echo 'Génération du JAR final'
+                sh 'mvn package -DskipTests'
             }
         }
     }
 
     post {
         always {
-            echo "=== Fin du pipeline ==="
+            echo '=== Pipeline terminé ==='
         }
         success {
-            echo "BRAVO ! Le build a réussi"
+            echo '
+            SUCCESS
+            BRAVO JASSER ! Ton pipeline est VERT sur Jenkins !'
         }
         failure {
-            echo "Échec du build"
+            echo 'ÉCHEC – regarde les logs ci-dessus pour corriger'
         }
     }
 }
