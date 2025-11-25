@@ -53,19 +53,20 @@ pipeline {
         }
     }
 
-    post {
+post {
         always {
             echo '=== Pipeline terminé ==='
         }
         success {
-            echo '
-            EXCELLENT JASSER !
-            Build + Tests + SonarQube → TOUT VERT !
-            Va voir ton rapport sur http://10.0.2.15:9000'
-                
+            echo '╔══════════════════════════════════════╗'
+            echo '║     TOUT EST VERT JASSER !           ║'
+            echo '║   Build + Tests + SonarQube OK       ║'
+            echo '║   Va voir ton rapport ici :          ║'
+            echo '║   http://10.0.2.15:9000              ║'
+            echo '╚══════════════════════════════════════╝'
         }
         failure {
-            echo 'Échec du pipeline – regarde les logs !'
+            echo 'Échec du pipeline – regarde les logs ci-dessus'
         }
     }
 }
