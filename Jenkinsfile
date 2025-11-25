@@ -2,17 +2,11 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven'           // ← vérifie le nom exact dans Manage Jenkins → Tools
-        jdk   'JDK17'           // ← si tu as configuré un JDK dans Jenkins, sinon supprime cette ligne
+        maven 'Maven'   // nom exact dans Manage Jenkins → Tools
     }
 
     environment {
-        // Profil H2 pour que les tests passent sans MySQL
-        SPRING_PROFILES_ACTIVE = 'prod'
-
-        // Configuration SonarQube (obligatoire)
-        SONAR_HOST_URL = 'http://10.0.2.15:9000'  // ← Remplace par l'IP de ta machine Jenkins/Sonar
-        SONAR_TOKEN    = credentials('sonarqube-token')  // on créera cette credential juste après
+        SPRING_PROFILES_ACTIVE = 'prod'   // ← c'est ce qui active application-prod.properties
     }
 
     stages {
@@ -27,46 +21,31 @@ pipeline {
 
         stage('Build & Test') {
             steps {
-                echo 'Compilation + tests unitaires'
-                sh 'mvn clean verify'
+                sh 'mvn clean verify -Dspring.profiles.active=prod'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                echo 'Analyse SonarQube en cours...'
-                sh '''
-                    mvn sonar:sonar \
-                      -Dsonar.projectKey=Devop_proejct \
-                      -Dsonar.host.url=${SONAR_HOST_URL} \
-                      -Dsonar.login=${SONAR_TOKEN} \
-                      -Dsonar.projectName="Student Management - Jasser" \
-                      -Dsonar.qualitygate.wait=true
-                '''
-            }
-        }
-
-        stage('Package') {
-            steps {
-                sh 'mvn package -DskipTests'
+                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                        mvn sonar:sonar \
+                          -Dsonar.projectKey=Devop_proejct \
+                          -Dsonar.host.url=http://10.0.2.15:9000 \
+                          -Dsonar.token=${SONAR_TOKEN} \
+                          -Dsonar.qualitygate.wait=true
+                    '''
+                }
             }
         }
     }
 
-post {
-        always {
-            echo '=== Pipeline terminé ==='
-        }
+    post {
         success {
-            echo '╔══════════════════════════════════════╗'
-            echo '║     TOUT EST VERT JASSER !           ║'
-            echo '║   Build + Tests + SonarQube OK       ║'
-            echo '║   Va voir ton rapport ici :          ║'
-            echo '║   http://10.0.2.15:9000              ║'
-            echo '╚══════════════════════════════════════╝'
+            echo 'TOUT EST VERT JASSER ! Build + Tests + SonarQube OK !'
         }
         failure {
-            echo 'Échec du pipeline – regarde les logs ci-dessus'
+            echo 'Échec – corrige application-prod.properties'
         }
     }
 }
