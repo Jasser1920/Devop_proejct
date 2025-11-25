@@ -2,24 +2,23 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven'   // vérifie que c’est bien ce nom dans Manage Jenkins → Tools
+        maven 'Maven'           // ← vérifie le nom exact dans Manage Jenkins → Tools
+        jdk   'JDK17'           // ← si tu as configuré un JDK dans Jenkins, sinon supprime cette ligne
     }
 
     environment {
-        // Profil H2 pour éviter l'erreur MySQL
+        // Profil H2 pour que les tests passent sans MySQL
         SPRING_PROFILES_ACTIVE = 'prod'
 
-        // IP exacte de ta VM Ubuntu (celle que tu viens de trouver)
-        SONAR_HOST_URL = 'http://10.0.2.15:9000'
-
-        // Token SonarQube (on le récupère via credentials Jenkins)
-        SONAR_TOKEN = credentials('sonarqube-token')
+        // Configuration SonarQube (obligatoire)
+        SONAR_HOST_URL = 'http://10.0.2.15:9000'  // ← Remplace par l'IP de ta machine Jenkins/Sonar
+        SONAR_TOKEN    = credentials('sonarqube-token')  // on créera cette credential juste après
     }
 
     stages {
         stage('Checkout') {
             steps {
-                echo 'Récupération du code depuis GitHub'
+                echo 'Récupération du code...'
                 git branch: 'main',
                     url: 'https://github.com/Jasser1920/Devop_proejct.git',
                     credentialsId: 'jenkins-github-pat'
@@ -28,20 +27,20 @@ pipeline {
 
         stage('Build & Test') {
             steps {
-                echo 'Compilation + tests unitaires (H2 en mémoire)'
+                echo 'Compilation + tests unitaires'
                 sh 'mvn clean verify'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                echo 'Envoi du code à SonarQube pour analyse qualité'
+                echo 'Analyse SonarQube en cours...'
                 sh '''
                     mvn sonar:sonar \
                       -Dsonar.projectKey=Devop_proejct \
-                      -Dsonar.projectName="Student Management - Jasser" \
                       -Dsonar.host.url=${SONAR_HOST_URL} \
-                      -Dsonar.token=${SONAR_TOKEN} \
+                      -Dsonar.login=${SONAR_TOKEN} \
+                      -Dsonar.projectName="Student Management - Jasser" \
                       -Dsonar.qualitygate.wait=true
                 '''
             }
@@ -49,7 +48,6 @@ pipeline {
 
         stage('Package') {
             steps {
-                echo 'Génération du JAR final'
                 sh 'mvn package -DskipTests'
             }
         }
@@ -61,14 +59,13 @@ pipeline {
         }
         success {
             echo '
-            PARFAIT JASSER !
-            Build réussi
-            Tests OK
-            Rapport SonarQube envoyé avec succès
-            Va voir ton projet ici → http://10.0.2.15:9000'
+            EXCELLENT JASSER !
+            Build + Tests + SonarQube → TOUT VERT !
+            Va voir ton rapport sur http://10.0.2.15:9000'
+                
         }
         failure {
-            echo 'Échec – regarde les logs ci-dessus'
+            echo 'Échec du pipeline – regarde les logs !'
         }
     }
 }
