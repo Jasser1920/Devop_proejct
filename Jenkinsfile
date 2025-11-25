@@ -2,21 +2,24 @@ pipeline {
     agent any
 
     tools {
-        // Change ici avec le nom EXACT que tu vois dans 
-        // Manage Jenkins → Tools → Maven installations
-        // La plupart du temps c’est "Maven" ou "maven-3.9.6" ou "M3"
-        maven 'Maven'      // ← à vérifier/adapter si besoin
+        maven 'Maven'   // vérifie que c’est bien ce nom dans Manage Jenkins → Tools
     }
 
     environment {
-        // Ce profil sera activé automatiquement sur Jenkins
+        // Profil H2 pour éviter l'erreur MySQL
         SPRING_PROFILES_ACTIVE = 'prod'
+
+        // IP exacte de ta VM Ubuntu (celle que tu viens de trouver)
+        SONAR_HOST_URL = 'http://10.0.2.15:9000'
+
+        // Token SonarQube (on le récupère via credentials Jenkins)
+        SONAR_TOKEN = credentials('sonarqube-token')
     }
 
     stages {
         stage('Checkout') {
             steps {
-                echo 'Récupération du code GitHub'
+                echo 'Récupération du code depuis GitHub'
                 git branch: 'main',
                     url: 'https://github.com/Jasser1920/Devop_proejct.git',
                     credentialsId: 'jenkins-github-pat'
@@ -25,13 +28,26 @@ pipeline {
 
         stage('Build & Test') {
             steps {
-                echo 'Lancement de Maven : compilation + tests'
-                // On ne skippe plus les tests : on veut que ça passe vraiment
+                echo 'Compilation + tests unitaires (H2 en mémoire)'
                 sh 'mvn clean verify'
             }
         }
 
-        stage('Packaging') {
+        stage('SonarQube Analysis') {
+            steps {
+                echo 'Envoi du code à SonarQube pour analyse qualité'
+                sh '''
+                    mvn sonar:sonar \
+                      -Dsonar.projectKey=Devop_proejct \
+                      -Dsonar.projectName="Student Management - Jasser" \
+                      -Dsonar.host.url=${SONAR_HOST_URL} \
+                      -Dsonar.token=${SONAR_TOKEN} \
+                      -Dsonar.qualitygate.wait=true
+                '''
+            }
+        }
+
+        stage('Package') {
             steps {
                 echo 'Génération du JAR final'
                 sh 'mvn package -DskipTests'
@@ -45,11 +61,14 @@ pipeline {
         }
         success {
             echo '
-            SUCCESS
-            BRAVO JASSER ! Ton pipeline est VERT sur Jenkins !'
+            PARFAIT JASSER !
+            Build réussi
+            Tests OK
+            Rapport SonarQube envoyé avec succès
+            Va voir ton projet ici → http://10.0.2.15:9000'
         }
         failure {
-            echo 'ÉCHEC – regarde les logs ci-dessus pour corriger'
+            echo 'Échec – regarde les logs ci-dessus'
         }
     }
 }
